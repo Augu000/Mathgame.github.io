@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Math Meteors - Scaling Difficulty</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: black;
+    }
+    canvas {
+      display: block;
+      touch-action: manipulation;
+    }
+    .buttons {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: repeat(2, 45vw);
+      gap: 10px;
+      z-index: 10;
+    }
+    .btn {
+      background: #333;
+      color: white;
+      font-size: 5vw;
+      padding: 15px;
+      text-align: center;
+      border-radius: 10px;
+      user-select: none;
+    }
+    .btn:active {
+      background: #555;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+<div class="buttons" id="answerButtons"></div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const btnContainer = document.getElementById('answerButtons');
+
+let W = window.innerWidth;
+let H = window.innerHeight;
+canvas.width = W;
+canvas.height = H;
+
+let meteor = null;
+let bullet = null;
+let score = 0;
+let correctCount = 0;
+let difficulty = 1;
+let shipX = W / 2 - 20;
+let choices = [];
+
+function randomProblem() {
+  const range = 10 + difficulty * 5;
+  const a = Math.floor(Math.random() * range) + 1;
+  const b = Math.floor(Math.random() * range) + 1;
+  const op = ['+', '-', '*'][Math.floor(Math.random() * 3)];
+  let result = eval(`${a}${op}${b}`);
+  return {
+    text: `${a} ${op} ${b}`,
+    answer: result,
+    x: Math.random() * (W - 80) + 40,
+    y: -40
+  };
+}
+
+function spawnMeteor() {
+  meteor = randomProblem();
+  createChoices(meteor.answer);
+}
+
+function createChoices(correct) {
+  choices = [correct];
+  while (choices.length < 4) {
+    let rand = correct + Math.floor(Math.random() * 20) - 10;
+    if (!choices.includes(rand) && rand >= 0) choices.push(rand);
+  }
+  shuffle(choices);
+  renderButtons();
+}
+
+function renderButtons() {
+  btnContainer.innerHTML = '';
+  choices.forEach(choice => {
+    const btn = document.createElement('div');
+    btn.className = 'btn';
+    btn.textContent = choice;
+    btn.onclick = () => checkAnswer(choice);
+    btnContainer.appendChild(btn);
+  });
+}
+
+function checkAnswer(selected) {
+  if (meteor && selected === meteor.answer && !bullet) {
+    shipX = meteor.x - 15;
+    bullet = { x: shipX + 15, y: H - 60, targetX: meteor.x, targetY: meteor.y };
+  } else if (selected !== meteor.answer) {
+    score = 0;
+    correctCount = 0;
+    difficulty = 1;
+  }
+}
+
+function drawShip() {
+  ctx.fillStyle = 'cyan';
+  ctx.beginPath();
+  ctx.moveTo(shipX, H - 20);
+  ctx.lineTo(shipX + 15, H - 50);
+  ctx.lineTo(shipX + 30, H - 20);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawMeteor(m) {
+  ctx.fillStyle = 'orange';
+  ctx.beginPath();
+  ctx.arc(m.x, m.y, 30, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'black';
+  ctx.font = '16px sans-serif';
+  ctx.fillText(m.text, m.x - 20, m.y + 5);
+}
+
+function drawBullet() {
+  if (!bullet) return;
+  ctx.fillStyle = 'red';
+  ctx.fillRect(bullet.x - 2, bullet.y, 4, 10);
+
+  let dx = bullet.targetX - bullet.x;
+  let dy = bullet.targetY - bullet.y;
+  let dist = Math.sqrt(dx * dx + dy * dy);
+  let speed = 8;
+  bullet.x += dx / dist * speed;
+  bullet.y += dy / dist * speed;
+
+  if (dist < 10) {
+    score++;
+    correctCount++;
+    if (correctCount % 5 === 0) difficulty++;
+    meteor = null;
+    bullet = null;
+    spawnMeteor();
+  }
+}
+
+function update() {
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.fillStyle = 'white';
+  ctx.font = '16px sans-serif';
+  ctx.fillText('Score: ' + score, 10, 20);
+  ctx.fillText('Difficulty: ' + difficulty, 10, 40);
+
+  if (meteor) {
+    meteor.y += 1 + difficulty * 0.2;
+    drawMeteor(meteor);
+
+    if (meteor.y > H + 30) {
+      meteor = null;
+      score = 0;
+      correctCount = 0;
+      difficulty = 1;
+      spawnMeteor();
+    }
+  }
+
+  drawBullet();
+  drawShip();
+  requestAnimationFrame(update);
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    let j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+window.addEventListener('resize', () => {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W;
+  canvas.height = H;
+});
+
+spawnMeteor();
+update();
+</script>
+
+</body>
+</html>
